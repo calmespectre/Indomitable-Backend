@@ -64,24 +64,7 @@ class Favorite(models.Model):
     added_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('user', 'product_id')  # Prevent duplicate favorites
-
-    def __str__(self):
-        return f"{self.title} - {self.user.email}"
-
-
-class Notification(models.Model):
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='notifications')
-    type = models.CharField(max_length=50, default='update')
-    title = models.CharField(max_length=255)
-    message = models.TextField()
-    date = models.DateTimeField(auto_now_add=True)
-    read = models.BooleanField(default=False)
-    icon = models.CharField(max_length=50, blank=True, null=True)
-    color = models.CharField(max_length=50, blank=True, null=True)
-    order_id = models.CharField(max_length=50, blank=True, null=True)
-    promo_code = models.CharField(max_length=50, blank=True, null=True)
+        unique_together = ('user', 'product_id')
 
     def __str__(self):
         return f"{self.title} - {self.user.email}"

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Order, OrderItem, Favorite, Notification
+from .models import Order, OrderItem, Favorite
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
@@ -27,10 +27,3 @@ class FavoriteSerializer(serializers.ModelSerializer):
         model = Favorite
         fields = ['id', 'product_id', 'title',
                   'image', 'price', 'category', 'added_at']
-
-
-class NotificationSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Notification
-        fields = ['id', 'type', 'title', 'message', 'date',
-                  'read', 'icon', 'color', 'order_id', 'promo_code']

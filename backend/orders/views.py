@@ -2,8 +2,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-from .models import Order, OrderItem, Favorite, Notification
-from .serializers import OrderSerializer, FavoriteSerializer, NotificationSerializer
+from .models import Order, OrderItem, Favorite
+from .serializers import OrderSerializer, FavoriteSerializer
 
 
 class OrderListCreateView(APIView):
@@ -48,18 +48,6 @@ class OrderListCreateView(APIView):
 
         serializer = OrderSerializer(order)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-
-class OrderDetailView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request, pk):
-        try:
-            order = Order.objects.get(pk=pk, user=request.user)
-            serializer = OrderSerializer(order)
-            return Response(serializer.data)
-        except Order.DoesNotExist:
-            return Response({"message": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
 
 
 class OrderCancelView(APIView):
@@ -124,63 +112,3 @@ class FavoriteDeleteView(APIView):
             return Response({"message": "Removed from favorites"})
         except Favorite.DoesNotExist:
             return Response({"message": "Favorite not found"}, status=status.HTTP_404_NOT_FOUND)
-
-
-class NotificationListView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        notifications = Notification.objects.filter(
-            user=request.user).order_by('-date')
-        serializer = NotificationSerializer(notifications, many=True)
-        return Response(serializer.data)
-
-    def post(self, request):
-        data = request.data
-        notification = Notification.objects.create(
-            user=request.user,
-            type=data.get('type', 'update'),
-            title=data.get('title', ''),
-            message=data.get('message', ''),
-            icon=data.get('icon', ''),
-            color=data.get('color', ''),
-            order_id=data.get('order_id', ''),
-            promo_code=data.get('promoCode', '')
-        )
-        serializer = NotificationSerializer(notification)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-
-class NotificationMarkReadView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def patch(self, request, pk):
-        try:
-            notification = Notification.objects.get(pk=pk, user=request.user)
-            notification.read = True
-            notification.save()
-            serializer = NotificationSerializer(notification)
-            return Response(serializer.data)
-        except Notification.DoesNotExist:
-            return Response({"message": "Notification not found"}, status=status.HTTP_404_NOT_FOUND)
-
-
-class NotificationMarkAllReadView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def patch(self, request):
-        Notification.objects.filter(
-            user=request.user, read=False).update(read=True)
-        return Response({"message": "All notifications marked as read"})
-
-
-class NotificationDeleteView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def delete(self, request, pk):
-        try:
-            notification = Notification.objects.get(pk=pk, user=request.user)
-            notification.delete()
-            return Response({"message": "Notification deleted"})
-        except Notification.DoesNotExist:
-            return Response({"message": "Notification not found"}, status=status.HTTP_404_NOT_FOUND)
