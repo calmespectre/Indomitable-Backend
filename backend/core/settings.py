@@ -147,3 +147,9 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 AUTHENTICATION_BACKENDS = [
     'accounts.views.EmailBackend',
 ]
+
+ALLOWED_HOSTS = [
+    "indomitable-backend-1.onrender.com",
+    "localhost",
+    "127.0.0.1",
+]
