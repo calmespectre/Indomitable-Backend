@@ -2,6 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from decimal import Decimal
 from .models import Order, OrderItem, Favorite
 from .serializers import OrderSerializer, FavoriteSerializer
 
@@ -17,34 +18,50 @@ class OrderListCreateView(APIView):
 
     def post(self, request):
         data = request.data
-        order = Order.objects.create(
-            user=request.user,
-            order_number=data.get('order_number'),
-            tracking_number=data.get('tracking_number', ''),
-            subtotal=data.get('subtotal', 0),
-            shipping_cost=data.get('shipping_cost', 0),
-            total=data.get('total', 0),
-            delivery_location=data.get('delivery_location', ''),
-            delivery_address=data.get('delivery_address', ''),
-            delivery_phone=data.get('delivery_phone', ''),
-            payment_method=data.get('payment_method', ''),
-            mpesa_number=data.get('mpesa_number', ''),
-            estimated_delivery=data.get('estimated_delivery', '')
-        )
+
+        order_number = data.get('order_number', '')
+        if Order.objects.filter(order_number=order_number).exists():
+            return Response({"error": "Order number already exists"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            order = Order.objects.create(
+                user=request.user,
+                order_number=order_number,
+                tracking_number=data.get('tracking_number', ''),
+                subtotal=Decimal(str(data.get('subtotal', 0))),
+                shipping_cost=Decimal(str(data.get('shipping_cost', 0))),
+                total=Decimal(str(data.get('total', 0))),
+                delivery_location=data.get('delivery_location', '') or None,
+                delivery_address=data.get('delivery_address', '') or None,
+                delivery_phone=data.get('delivery_phone', '') or None,
+                payment_method=data.get('payment_method', '') or None,
+                mpesa_number=data.get('mpesa_number', '') or None,
+                estimated_delivery=data.get('estimated_delivery', '') or None
+            )
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
         items_data = data.get('items', [])
         for item_data in items_data:
-            OrderItem.objects.create(
-                order=order,
-                product_name=item_data.get(
-                    'product_name', item_data.get('name', '')),
-                product_image=item_data.get(
-                    'product_image', item_data.get('image', '')),
-                quantity=item_data.get('quantity', 1),
-                price=item_data.get('price', 0),
-                size=item_data.get('size', ''),
-                color=item_data.get('color', '')
-            )
+            product_image = item_data.get(
+                'product_image', item_data.get('image', ''))
+            if not product_image:
+                product_image = None
+
+            try:
+                OrderItem.objects.create(
+                    order=order,
+                    product_name=item_data.get(
+                        'product_name', item_data.get('name', 'Unknown Product')),
+                    product_image=product_image,
+                    quantity=int(item_data.get('quantity', 1)),
+                    price=Decimal(str(item_data.get('price', 0))),
+                    size=item_data.get('size', '') or None,
+                    color=item_data.get('color', '') or None
+                )
+            except Exception as e:
+                order.delete()
+                return Response({"error": f"Failed to save item: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = OrderSerializer(order)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -90,8 +107,8 @@ class FavoriteListView(APIView):
             product_id=data.get('product_id'),
             defaults={
                 'title': data.get('title', ''),
-                'image': data.get('image', ''),
-                'price': data.get('price', 0),
+                'image': data.get('image', '') or None,
+                'price': Decimal(str(data.get('price', 0))),
                 'category': data.get('category', '')
             }
         )
