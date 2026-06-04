@@ -4,7 +4,7 @@ from .views import (
     GoogleLoginView, AppleLoginView,
     ProfileView, UpdateProfilePictureView, DeleteProfilePictureView,
     DeleteAccountView,
-    PastOrdersView, CreateOrderView,
+    PastOrdersView, CreateOrderView, CancelOrderView, ClearOrderHistoryView,
     FavoriteListView, FavoriteRemoveView, FavoriteToggleView,
 )
 from rest_framework_simplejwt.views import TokenRefreshView
@@ -14,15 +14,11 @@ urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),
     path('login/', LoginView.as_view(), name='login'),
     path('password-reset/', PasswordResetView.as_view(), name='password_reset'),
-
-    # Social Logins
     path('google/', GoogleLoginView.as_view(), name='google_login'),
     path('apple/', AppleLoginView.as_view(), name='apple_login'),
-
-    # JWT Refresh
     path('refresh-token/', TokenRefreshView.as_view(), name='token_refresh'),
 
-    # Account Profile
+    # Profile
     path('profile/', ProfileView.as_view(), name='profile'),
     path('profile/update/', ProfileView.as_view(), name='update_profile'),
     path('profile/update-picture/',
@@ -34,6 +30,9 @@ urlpatterns = [
     # Orders
     path('orders/', PastOrdersView.as_view(), name='past_orders'),
     path('orders/create/', CreateOrderView.as_view(), name='create_order'),
+    path('orders/clear/', ClearOrderHistoryView.as_view(), name='clear_orders'),
+    path('orders/<int:order_id>/cancel/',
+         CancelOrderView.as_view(), name='cancel_order'),
 
     # Favorites
     path('favorites/', FavoriteListView.as_view(), name='favorites'),

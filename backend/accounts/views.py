@@ -14,7 +14,7 @@ from .serializers import (
     RegisterSerializer, UserSerializer, UserProfileSerializer,
     OrderSerializer, CreateOrderSerializer, FavoriteItemSerializer
 )
-from .models import CustomUser, Order, OrderItem, FavoriteItem
+from .models import CustomUser, Order, OrderItem, OrderStatusHistory, FavoriteItem
 from django.contrib.auth import get_user_model
 from django.contrib.auth.backends import ModelBackend
 
@@ -182,22 +182,19 @@ class DeleteAccountView(APIView):
         return Response({"message": "Account deleted successfully"})
 
 
-# ============ NEW: ORDER VIEWS ============
+# ============ ORDER VIEWS ============
 
 class PastOrdersView(APIView):
-    """GET /api/orders/ — list all past orders for logged-in user"""
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         orders = Order.objects.filter(
-            user=request.user
-        ).order_by('-created_at')
+            user=request.user).order_by('-created_at')
         serializer = OrderSerializer(orders, many=True)
         return Response(serializer.data)
 
 
 class CreateOrderView(APIView):
-    """POST /api/orders/create/ — place a new order"""
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -206,27 +203,38 @@ class CreateOrderView(APIView):
             data = serializer.validated_data
             user = request.user
 
-            # Fallback to profile data if not provided
-            delivery_name = data.get('delivery_name') or user.full_name
+            # Fallback to profile data if delivery details not provided
+            delivery_name = data.get('delivery_name') or user.full_name or ''
             delivery_phone = data.get(
                 'delivery_phone') or user.phone_number or ''
             delivery_address = data.get(
                 'delivery_address') or user.address or ''
+            delivery_location = data.get('delivery_location', '')
+            payment_method = data.get('payment_method', 'card')
+            mpesa_number = data.get('mpesa_number')
 
-            # Calculate total
-            total = sum(
-                item['product_price'] * item['quantity']
+            # Calculate totals
+            subtotal = sum(
+                float(item['product_price']) * item['quantity']
                 for item in data['items']
             )
+            shipping_cost = 0  # Can be calculated based on location
+            total_amount = subtotal + shipping_cost
 
             order = Order.objects.create(
                 user=user,
-                total_amount=total,
+                subtotal=subtotal,
+                shipping_cost=shipping_cost,
+                total_amount=total_amount,
                 delivery_name=delivery_name,
                 delivery_phone=delivery_phone,
                 delivery_address=delivery_address,
+                delivery_location=delivery_location,
+                payment_method=payment_method,
+                mpesa_number=mpesa_number,
             )
 
+            # Create order items
             for item in data['items']:
                 OrderItem.objects.create(
                     order=order,
@@ -237,21 +245,64 @@ class CreateOrderView(APIView):
                     product_image=item.get('product_image', ''),
                 )
 
+            # Create initial status history
+            OrderStatusHistory.objects.create(
+                order=order,
+                status='pending',
+                description='Order placed successfully'
+            )
+
             return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-# ============ NEW: FAVORITE VIEWS ============
+class CancelOrderView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, order_id):
+        try:
+            order = Order.objects.get(id=order_id, user=request.user)
+        except Order.DoesNotExist:
+            return Response({"error": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if order.status in ['shipped', 'delivered', 'cancelled']:
+            return Response(
+                {"error": f"Cannot cancel order with status: {order.status}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        order.status = 'cancelled'
+        order.save()
+
+        OrderStatusHistory.objects.create(
+            order=order,
+            status='cancelled',
+            description='Order cancelled by customer'
+        )
+
+        serializer = OrderSerializer(order)
+        return Response(serializer.data)
+
+
+class ClearOrderHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request):
+        orders = Order.objects.filter(user=request.user)
+        count = orders.count()
+        orders.delete()
+        return Response({"message": f"Cleared {count} orders"})
+
+
+# ============ FAVORITE VIEWS ============
 
 class FavoriteListView(APIView):
-    """GET/POST /api/favorites/ — list or add favorites"""
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         favorites = FavoriteItem.objects.filter(
-            user=request.user
-        ).order_by('-added_at')
+            user=request.user).order_by('-added_at')
         serializer = FavoriteItemSerializer(favorites, many=True)
         return Response(serializer.data)
 
@@ -268,10 +319,8 @@ class FavoriteListView(APIView):
             user=request.user, product_id=product_id
         ).first()
         if existing:
-            return Response(
-                {"message": "Already in favorites"},
-                status=status.HTTP_200_OK
-            )
+            serializer = FavoriteItemSerializer(existing)
+            return Response(serializer.data, status=status.HTTP_200_OK)
 
         serializer = FavoriteItemSerializer(data=request.data)
         if serializer.is_valid():
@@ -281,7 +330,6 @@ class FavoriteListView(APIView):
 
 
 class FavoriteRemoveView(APIView):
-    """DELETE /api/favorites/<product_id>/ — remove from favorites"""
     permission_classes = [IsAuthenticated]
 
     def delete(self, request, product_id):
@@ -299,7 +347,6 @@ class FavoriteRemoveView(APIView):
 
 
 class FavoriteToggleView(APIView):
-    """POST /api/favorites/toggle/ — toggle favorite on/off"""
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
