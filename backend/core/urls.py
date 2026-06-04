@@ -13,7 +13,7 @@ urlpatterns = [
     path('', api_root),
     path('admin/', admin.site.urls),
     path('api/auth/', include('accounts.urls')),
-    path('api/orders/', include('orders.urls')),
+    # path('api/orders/', include('orders.urls')),
 ]
 
 # Serve media files in development
