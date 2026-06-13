@@ -9,6 +9,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from google.oauth2 import id_token as google_id_token
 from google.auth.transport import requests as google_requests
+from jwt import PyJWKClient
 
 from .serializers import (
     RegisterSerializer, UserSerializer, UserProfileSerializer,
@@ -75,12 +76,17 @@ class GoogleLoginView(APIView):
         if not token:
             return Response({"message": "Token is required"}, status=status.HTTP_400_BAD_REQUEST)
         try:
+            google_client_id = settings.SOCIALACCOUNT_PROVIDERS['google']['APP']['client_id']
             idinfo = google_id_token.verify_oauth2_token(
-                token, google_requests.Request(),
-                settings.SOCIALACCOUNT_PROVIDERS['google']['APP']['client_id']
+                token, google_requests.Request(), google_client_id
             )
+
+            if idinfo['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
+                raise ValueError('Wrong issuer.')
+
             email = idinfo['email']
             full_name = idinfo.get('name', '')
+
             user, created = CustomUser.objects.get_or_create(
                 email=email, defaults={'full_name': full_name}
             )
@@ -90,40 +96,61 @@ class GoogleLoginView(APIView):
                 'refresh': str(refresh),
                 'user': UserSerializer(user).data
             })
-        except ValueError:
-            return Response({"message": "Invalid Google token"}, status=status.HTTP_400_BAD_REQUEST)
+        except ValueError as e:
+            return Response({"message": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"message": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class AppleLoginView(APIView):
     def post(self, request):
-        id_token = request.data.get('id_token')
+        id_token_str = request.data.get('id_token')
         full_name = request.data.get('full_name', '')
-        if not id_token:
+
+        if not id_token_str:
             return Response({"message": "Token is required"}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
-            decoded = jwt.decode(id_token, options={"verify_signature": False})
+            apple_client_id = settings.SOCIALACCOUNT_PROVIDERS['apple']['APP']['client_id']
+            jwks_url = "https://appleid.apple.com/auth/keys"
+            jwks_client = PyJWKClient(jwks_url)
+
+            signing_key = jwks_client.get_signing_key_from_jwt(id_token_str)
+            public_key = signing_key.key
+
+            decoded = jwt.decode(
+                id_token_str,
+                public_key,
+                algorithms=["RS256"],
+                audience=apple_client_id,
+                issuer="https://appleid.apple.com"
+            )
+
             email = decoded.get('email')
             if not email:
                 return Response({"message": "Email not found in Apple token"}, status=status.HTTP_400_BAD_REQUEST)
+
             user, created = CustomUser.objects.get_or_create(
                 email=email, defaults={'full_name': full_name}
             )
+
             if created and not user.full_name and full_name:
                 user.full_name = full_name
                 user.save()
+
             refresh = RefreshToken.for_user(user)
             return Response({
                 'access': str(refresh.access_token),
                 'refresh': str(refresh),
                 'user': UserSerializer(user).data
             })
+        except jwt.ExpiredSignatureError:
+            return Response({"message": "Apple token has expired"}, status=status.HTTP_400_BAD_REQUEST)
+        except jwt.InvalidTokenError as e:
+            return Response({"message": f"Invalid Apple token: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"message": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-
-# --- ACCOUNT PROFILE VIEWS ---
 
 class ProfileView(APIView):
     permission_classes = [IsAuthenticated]
@@ -182,8 +209,6 @@ class DeleteAccountView(APIView):
         return Response({"message": "Account deleted successfully"})
 
 
-# ============ ORDER VIEWS ============
-
 class PastOrdersView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -203,7 +228,6 @@ class CreateOrderView(APIView):
             data = serializer.validated_data
             user = request.user
 
-            # Fallback to profile data if delivery details not provided
             delivery_name = data.get('delivery_name') or user.full_name or ''
             delivery_phone = data.get(
                 'delivery_phone') or user.phone_number or ''
@@ -213,12 +237,11 @@ class CreateOrderView(APIView):
             payment_method = data.get('payment_method', 'card')
             mpesa_number = data.get('mpesa_number')
 
-            # Calculate totals
             subtotal = sum(
                 float(item['product_price']) * item['quantity']
                 for item in data['items']
             )
-            shipping_cost = 0  # Can be calculated based on location
+            shipping_cost = 0
             total_amount = subtotal + shipping_cost
 
             order = Order.objects.create(
@@ -234,7 +257,6 @@ class CreateOrderView(APIView):
                 mpesa_number=mpesa_number,
             )
 
-            # Create order items
             for item in data['items']:
                 OrderItem.objects.create(
                     order=order,
@@ -245,7 +267,6 @@ class CreateOrderView(APIView):
                     product_image=item.get('product_image', ''),
                 )
 
-            # Create initial status history
             OrderStatusHistory.objects.create(
                 order=order,
                 status='pending',
@@ -295,8 +316,6 @@ class ClearOrderHistoryView(APIView):
         return Response({"message": f"Cleared {count} orders"})
 
 
-# ============ FAVORITE VIEWS ============
-
 class FavoriteListView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -314,7 +333,6 @@ class FavoriteListView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Check if already favorited
         existing = FavoriteItem.objects.filter(
             user=request.user, product_id=product_id
         ).first()

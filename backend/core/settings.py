@@ -8,7 +8,11 @@ SECRET_KEY = 'django-insecure-d70txh9ka&9b(to91-a+*bhl*b%7usj%cbqgrrm7t!iikt)fsw
 
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "indomitable-backend-1.onrender.com",
+    "localhost",
+    "127.0.0.1",
+]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -128,16 +132,17 @@ DJ_REST_AUTH = {
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
         'APP': {
-            'client_id': 'YOUR_GOOGLE_CLIENT_ID',
-            'secret': 'YOUR_GOOGLE_CLIENT_SECRET',
+            'client_id': os.environ.get('GOOGLE_CLIENT_ID', 'YOUR_GOOGLE_CLIENT_ID'),
+            'secret': os.environ.get('GOOGLE_CLIENT_SECRET', 'YOUR_GOOGLE_CLIENT_SECRET'),
             'key': ''
         }
     },
     'apple': {
         'APP': {
-            'client_id': 'YOUR_APPLE_CLIENT_ID',
-            'secret': 'YOUR_APPLE_SECRET',
-            'key': ''
+            'client_id': os.environ.get('APPLE_CLIENT_ID', 'YOUR_APPLE_CLIENT_ID'),
+            'secret': os.environ.get('APPLE_SECRET', 'YOUR_APPLE_SECRET'),
+            'key_id': os.environ.get('APPLE_KEY_ID', 'YOUR_APPLE_KEY_ID'),
+            'team_id': os.environ.get('APPLE_TEAM_ID', 'YOUR_APPLE_TEAM_ID'),
         }
     }
 }
@@ -147,10 +152,4 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 AUTHENTICATION_BACKENDS = [
     'accounts.views.EmailBackend',
-]
-
-ALLOWED_HOSTS = [
-    "indomitable-backend-1.onrender.com",
-    "localhost",
-    "127.0.0.1",
 ]
