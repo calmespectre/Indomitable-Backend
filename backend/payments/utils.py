@@ -1,11 +1,22 @@
+import time
 import requests
 from django.conf import settings
 import logging
 
 logger = logging.getLogger(__name__)
 
+_token_cache = {
+    'token': None,
+    'expires_at': 0
+}
+
 
 def get_access_token():
+    current_time = time.time()
+
+    if _token_cache['token'] and current_time < _token_cache['expires_at'] - 60:
+        return _token_cache['token']
+
     env = settings.DARAJI_ENVIRONMENT
     consumer_key = settings.DARAJI_CONSUMER_KEY
     consumer_secret = settings.DARAJI_CONSUMER_SECRET
@@ -24,7 +35,10 @@ def get_access_token():
         logger.info(f"Auth response: {result}")
 
         if response.status_code == 200:
-            return result.get('access_token')
+            _token_cache['token'] = result['access_token']
+            expires_in = result.get('expires_in', '3599')
+            _token_cache['expires_at'] = current_time + int(expires_in)
+            return _token_cache['token']
         else:
             error_msg = result.get(
                 'errorMessage', result.get('error', 'Unknown error'))
