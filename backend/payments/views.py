@@ -4,7 +4,7 @@ import requests
 from django.conf import settings
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 import logging
 
@@ -12,15 +12,15 @@ from .utils import get_access_token
 
 logger = logging.getLogger(__name__)
 
+KCB_PAYBILL_BUSINESS_NUMBER = "522533"
+KCB_PAYBILL_ACCOUNT_NUMBER = "8084630"
+
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def stk_push(request):
     phone_number = request.data.get('phone_number')
     amount = request.data.get('amount')
-    account_reference = request.data.get(
-        'account_reference', f'Order-{int(time.time())}'
-    )
 
     if not phone_number or not amount:
         return Response(
@@ -62,8 +62,8 @@ def stk_push(request):
         'PartyA': phone_number,
         'PartyB': shortcode,
         'PhoneNumber': phone_number,
-        'CallBackURL': 'https://your-domain.com/api/payments/callback/',
-        'AccountReference': account_reference[:12],
+        'CallBackURL': 'https://indomitable-backend-1.onrender.com/api/payments/callback/',
+        'AccountReference': KCB_PAYBILL_ACCOUNT_NUMBER,
         'TransactionDesc': 'Order Payment',
     }
 
