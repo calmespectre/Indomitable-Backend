@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'accounts',
     'orders',
+    'payments',
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
@@ -153,3 +154,12 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 AUTHENTICATION_BACKENDS = [
     'accounts.views.EmailBackend',
 ]
+
+DARAJI_CONSUMER_KEY = os.environ.get(
+    'DARAJI_CONSUMER_KEY', '9pVoJ95w2gnAh701bux0dEVqdmp6SoMIXUtkGgNH4QoyEgQA')
+DARAJI_CONSUMER_SECRET = os.environ.get(
+    'DARAJI_CONSUMER_SECRET', '3mvnbH3BmZkuPhGwwM9AGjpBp3eIwlqL5hZ118rqLUF4k9GTqeM0rZGpAo1ZuUhg')
+DARAJI_PASSKEY = os.environ.get(
+    'DARAJI_PASSKEY', 'bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919')
+DARAJI_SHORTCODE = os.environ.get('DARAJI_SHORTCODE', '174379')
+DARAJI_ENVIRONMENT = os.environ.get('DARAJI_ENVIRONMENT', 'sandbox')
