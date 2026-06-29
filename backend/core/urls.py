@@ -29,6 +29,7 @@ urlpatterns = [
     path('api/orders/', include('orders.urls')),
     path('api/download-apk/', download_apk, name='download_apk'),
     path('api/payments/', include('payments.urls')),
+    path('api/admin/', include('admin_api.urls')),
 ]
 
 # Serve media files in development
