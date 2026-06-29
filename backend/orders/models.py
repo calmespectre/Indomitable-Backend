@@ -14,7 +14,7 @@ class Order(models.Model):
     ]
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL,
-                             on_delete=models.CASCADE, related_name='orders')
+                             on_delete=models.CASCADE, related_name='orders_orders')
     order_number = models.CharField(max_length=50, unique=True)
     tracking_number = models.CharField(max_length=100, blank=True, null=True)
     status = models.CharField(
@@ -55,7 +55,7 @@ class OrderItem(models.Model):
 
 class Favorite(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL,
-                             on_delete=models.CASCADE, related_name='favorites')
+                             on_delete=models.CASCADE, related_name='orders_favorites')
     product_id = models.CharField(max_length=100)
     title = models.CharField(max_length=255)
     image = models.URLField(max_length=500, blank=True, null=True)

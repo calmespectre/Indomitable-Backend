@@ -43,8 +43,6 @@ class CustomUser(AbstractUser):
         return self.email
 
 
-# ============ ORDER & FAVORITE MODELS ============
-
 class Order(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
@@ -64,14 +62,13 @@ class Order(models.Model):
     ]
 
     user = models.ForeignKey(
-        CustomUser, on_delete=models.CASCADE, related_name='orders')
+        CustomUser, on_delete=models.CASCADE, related_name='accounts_orders')
     order_number = models.CharField(max_length=50, unique=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default='pending')
 
-    # Financial
     subtotal = models.DecimalField(
         max_digits=10, decimal_places=2, default=0)
     shipping_cost = models.DecimalField(
@@ -79,18 +76,15 @@ class Order(models.Model):
     total_amount = models.DecimalField(
         max_digits=10, decimal_places=2, default=0)
 
-    # Delivery (snapshot at time of order)
     delivery_name = models.CharField(max_length=255, blank=True)
     delivery_phone = models.CharField(max_length=20, blank=True)
     delivery_address = models.TextField(blank=True)
     delivery_location = models.CharField(max_length=255, blank=True)
 
-    # Payment
     payment_method = models.CharField(
         max_length=20, choices=PAYMENT_CHOICES, default='card')
     mpesa_number = models.CharField(max_length=20, blank=True, null=True)
 
-    # Tracking
     tracking_number = models.CharField(max_length=100, blank=True, null=True)
     estimated_delivery = models.CharField(
         max_length=100, blank=True, default='7-10 business days')
@@ -136,7 +130,7 @@ class OrderStatusHistory(models.Model):
 
 class FavoriteItem(models.Model):
     user = models.ForeignKey(
-        CustomUser, on_delete=models.CASCADE, related_name='favorites')
+        CustomUser, on_delete=models.CASCADE, related_name='accounts_favorites')
     product_id = models.IntegerField()
     product_name = models.CharField(max_length=255)
     product_price = models.DecimalField(max_digits=10, decimal_places=2)
